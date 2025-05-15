@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Vista de Asistencia</title>
+    <style>
+        body { background: white; font-family: Segoe UI; padding: 30px; }
+        h1 { color: #003366; }
+        .form-control { margin-bottom: 15px; width: 100%; padding: 10px; font-size: 16px; }
+        .btn { padding: 10px 20px; font-size: 16px; background: #e0f0ff; border: none; cursor: pointer; border-radius: 6px; }
+        .btn:hover { background: #c0e7ff; }
+    </style>
+</head>
+<body>
+    <h1>Reporte de Asistencia</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul>
+            {% for category, message in messages %}
+             <li style="color: {% if category == 'error' %}red{% else %}green{% endif %};">
+                {{ message }}
+             </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+    {% endwith %}
+    <form method="post" action="/procesar_asistencia">
+        <label for="checklist_id">Ingresar CheckListID:</label><br>
+        <input class="form-control" type="text" name="checklist_id" required><br>
+        <button class="btn" type="submit">Cargar Datos</button>
+    </form>
+    <hr style="margin: 20px 0;">
+
+    <label for="fecha_filtro">Seleccionar Fecha:</label><br>
+    <input class="form-control" type="date" id="fecha_filtro" name="fecha_filtro"><br>
+
+    <form id="filtro-temas-form">
+       <label for="tema_filtro">Seleccionar Temas (puede elegir varios):</label><br>
+        <select multiple size="10" class="form-control" id="tema_filtro" name="tema_filtro">
+            <option value="">Seleccione una fecha primero</option>
+        </select>
+        <small>Usa Ctrl (o Cmd) para seleccionar más de uno</small><br><br>
+        <button class="btn" type="submit">Filtrar por Tema</button>
+    </form>
+
+
+<script>
+    const fechaInput = document.getElementById("fecha_filtro");
+    const temaSelect = document.getElementById("tema_filtro");
+
+    // Cargar tabla + temas al cambiar fecha
+    fechaInput.addEventListener("change", () => {
+        const fecha = fechaInput.value;
+        if (!fecha) return;
+
+        fetch("/ajax_filtrar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fecha: fecha, temas: [] }) // solo fecha
+        })
+        .then(res => res.json())
+        .then(result => {
+            // Recargar temas
+            temaSelect.innerHTML = '';
+            result.temas.forEach(t => {
+            const option = document.createElement("option");
+            option.value = t;
+            option.textContent = t;
+            temaSelect.appendChild(option);
+             });
+
+            // Cargar tabla
+            renderizarTabla(result.columnas, result.data);
+        });
+    });
+
+    // Evento del formulario de temas con validación de fecha robusta
+    document.getElementById("filtro-temas-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const fecha = document.getElementById("fecha_filtro").value;
+        const temas = Array.from(temaSelect.selectedOptions).map(opt => opt.value);
+
+        if (!fecha) {
+            alert("Primero selecciona una fecha válida");
+            return;
+        }
+
+        fetch("/ajax_filtrar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fecha: fecha, temas: temas })
+        })
+        .then(res => res.json())
+        .then(result => {
+            renderizarTabla(result.columnas, result.data);
+        });
+    });
+
+    // Función auxiliar para generar tabla
+    function renderizarTabla(columnas, data) {
+        const tablaDiv = document.getElementById("tabla_resultados");
+
+        if (!data.length) {
+            tablaDiv.innerHTML = "<p>No hay registros para esa selección.</p>";
+            return;
+        }
+
+        let html = '<h2>Resultados:</h2><div style="overflow-x: auto; max-height: 400px;"><table border="1" cellpadding="6" cellspacing="0"><thead><tr>';
+        columnas.forEach(col => {
+            html += `<th>${col}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        data.forEach(row => {
+            html += '<tr>';
+            columnas.forEach(col => {
+                html += `<td>${row[col] ?? ""}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        tablaDiv.innerHTML = html;
+    }
+</script>
+
+
+
+
+   <div id="tabla_resultados">
+    {% if data %}
+        <h2>Resultados:</h2>
+        <div style="overflow-x: auto; max-height: 400px;">
+            <table border="1" cellpadding="6" cellspacing="0" id="tabla_dinamica">
+                <thead>
+                    <tr>
+                        {% for col in columnas %}
+                            <th>{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                        <tr>
+                            {% for col in columnas %}
+                                <td>{{ row[col] }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+    </div>
+    <hr>
+
+    <h3>Exportar a Excel</h3>
+<form method="post" action="/exportar_excel" enctype="multipart/form-data">
+    <label>Responsable del registro:</label><br>
+    <input type="text" name="texto_g50" class="form-control" required><br>
+
+    <label>Cargo del responsable:</label><br>
+    <input type="text" name="texto_g52" class="form-control" required><br>
+
+    <label>Imagen de firma personal (PNG/JPG):</label><br>
+    <input type="file" name="firma_imagen" accept=".png,.jpg,.jpeg" class="form-control" required><br>
+
+    <label>Subir ZIP con firmas por DNI:</label><br>
+    <input type="file" name="firmas_zip" accept=".zip" class="form-control" required><br><br>
+
+    <button class="btn" type="submit">📄 Exportar Excel</button>
+</form>
+
+{% if excel_generado %}
+    <p><strong>✅ Excel generado:</strong> <a href="{{ url_for('static', filename='exports/' + excel_generado) }}" target="_blank">📥 Descargar aquí</a></p>
+{% endif %}
+
+    <br><a href="/" class="btn">Volver al Menú</a>
+
+</body>
+</html>

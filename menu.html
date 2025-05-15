@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Menú Principal</title>
+    <style>
+        body { background-color: white; font-family: Segoe UI; text-align: center; padding: 50px; }
+        h1 { color: #003366; }
+        .btn { display: block; margin: 20px auto; padding: 15px 30px; font-size: 16px; background: #e0f0ff; border: none; cursor: pointer; border-radius: 8px; }
+        .btn:hover { background: #c0e7ff; }
+    </style>
+</head>
+<body>
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="width:180px;height:110px;"><br><br>
+    <h1>Seleccione una opción:</h1>
+    <a href="{{ url_for('asistencia') }}"><button class="btn">Generar Reporte de Asistencia</button></a>
+    <a href="{{ url_for('checklist') }}"><button class="btn">Generar Datos de Checklist</button></a>
+</body>
+</html>
