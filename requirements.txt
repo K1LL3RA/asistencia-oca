@@ -1,4 +1,5 @@
-Flask
+flask
 pandas
+pyodbc
 openpyxl
-Pillow
+werkzeug
