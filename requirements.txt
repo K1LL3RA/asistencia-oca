@@ -5,3 +5,4 @@ openpyxl
 werkzeug
 Pillow
 gunicorn
+pytds
